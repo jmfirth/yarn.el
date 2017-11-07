@@ -42,6 +42,15 @@ NIL if they should be looked up from the global path"
   :type 'string
   :group 'yarn)
 
+(defcustom yarn-display-buffer nil
+  "Pop to yarn buffer when the process finishes."
+  :type 'boolean
+  :group 'yarn)
+
+(defcustom yarn-finished-hook '()
+  "Hooks run when the current yarn process finishes."
+  :type 'hook
+  :group 'yarn)
 
 (defvar yarn-vars-name "hello-world")
 (defvar yarn-vars-desc "")
@@ -59,7 +68,6 @@ NIL if they should be looked up from the global path"
 (defvar yarn-vars-last-script-name "")
 (defvar yarn-vars-filename "")
 
-
 (defun yarn-exec-with-path (callback &rest args)
   "Execute CALLBACK with the path set to YARN_EXECUTABLE_PATH."
   (let ((exec-path (if yarn-executable-path
@@ -72,6 +80,17 @@ NIL if they should be looked up from the global path"
 
 (defun yarn-git ()
   (concat "git@github.com:" yarn-vars-git-user "/" yarn-vars-name ".git"))
+
+(defun yarn-start-process (name buffer program &rest program-args)
+  "Wraps `start-process' so that we can override it."
+  (when (get-buffer buffer)
+    (kill-buffer buffer))
+  (apply 'start-process name buffer program program-args)
+  (with-current-buffer buffer
+    (while (process-live-p (get-process name))
+      (sit-for 0.5))
+    (run-hooks 'yarn-finished-hook))
+  (if yarn-display-buffer (pop-to-buffer buffer)))
 
 (setq json-encoding-pretty-print t)
 
@@ -113,7 +132,7 @@ NIL if they should be looked up from the global path"
   "Install all dependencies"
   (interactive)
   (message "Installing dependencies...  (Check *yarn* for the output)")
-  (yarn-exec-with-path 'start-process "yarn-install" "*yarn*" "yarn" "install"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-install" "*yarn*" "yarn" "install"))
 
 (defun yarn-init (path)
   "Initialize a new Node.js project"
@@ -172,70 +191,70 @@ NIL if they should be looked up from the global path"
   (let (package)
     (setq package (read-from-minibuffer "Remove dependency (e.g: minimist): " package))
     (message (concat "Remove dependency: " package))
-    (yarn-exec-with-path 'start-process "yarn-remove" "*yarn*" "yarn" "remove" package)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-remove" "*yarn*" "yarn" "remove" package)))
 
 (defun yarn-add ()
   "Add dependency"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add dependency (e.g: minimist): " yarn-vars-add-dep))
   (message (concat "Adding dependency: " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add" "*yarn*" "yarn" "add" yarn-vars-add-dep))
+  (yarn-exec-with-path 'yarn-start-process "yarn-add" "*yarn*" "yarn" "add" yarn-vars-add-dep))
 
 (defun yarn-add-dev ()
   "Add development dependency"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add dev dependency (e.g: tape): " yarn-vars-add-dep))
   (message (concat "Adding dev dependency: " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-dev" "*yarn*" "yarn" "add" yarn-vars-add-dep "-dev"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-add-dev" "*yarn*" "yarn" "add" yarn-vars-add-dep "-dev"))
 
 (defun yarn-add-peer ()
   "Add peer dependency"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add peer dependency (e.g: react-dom): " yarn-vars-add-dep))
   (message (concat "Adding peer dependency: " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-peer" "*yarn*" "yarn" "add" yarn-vars-add-dep "-peer"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-add-peer" "*yarn*" "yarn" "add" yarn-vars-add-dep "-peer"))
 
 (defun yarn-add-optional ()
   "Add peer dependency"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add optional dependency (e.g: fetch): " yarn-vars-add-dep))
   (message (concat "Adding optional dependency: " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-optional" "*yarn*" "yarn" "add" yarn-vars-add-dep "-optional"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-add-optional" "*yarn*" "yarn" "add" yarn-vars-add-dep "-optional"))
 
 (defun yarn-add-exact ()
   "Add exact dependency"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add exact dependency (e.g: react-router): " yarn-vars-add-dep))
   (message (concat "Adding exact dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-exact" "*yarn*" "yarn" "add" yarn-vars-add-dep "-exact"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-add-exact" "*yarn*" "yarn" "add" yarn-vars-add-dep "-exact"))
 
 (defun yarn-add-tilde ()
   "Add exact dependency"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add tilde dependency (e.g: react): " yarn-vars-add-dep))
   (message (concat "Adding tilde dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-tilde"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-tilde"))
 
 (defun yarn-global-add ()
   "Add dependency globally"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add global dependency (e.g: minimist): " yarn-vars-add-dep))
   (message (concat "Adding dependency: " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-global-add" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep))
+  (yarn-exec-with-path 'yarn-start-process "yarn-global-add" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep))
 
 (defun yarn-global-add-exact ()
   "Add exact dependency globally"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add global exact dependency (e.g: react-router): " yarn-vars-add-dep))
   (message (concat "Adding exact dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-global-add-exact" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-exact"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-global-add-exact" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-exact"))
 
 (defun yarn-global-add-tilde ()
   "Add exact dependency globally"
   (interactive)
   (setq yarn-vars-add-dep (read-from-minibuffer "Add global tilde dependency (e.g: react): " yarn-vars-add-dep))
   (message (concat "Adding tilde dependency " yarn-vars-add-dep))
-  (yarn-exec-with-path 'start-process "yarn-global-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-tilde"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-global-add-tilde" "*yarn*" "yarn" "global" "add" yarn-vars-add-dep "-tilde"))
 
 (defun yarn-parse-dependency (input)
   (let (name ver dev)
@@ -263,49 +282,49 @@ NIL if they should be looked up from the global path"
 (defun yarn-check ()
   "Verify installed package versions"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-check" "*yarn*" "yarn" "check"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-check" "*yarn*" "yarn" "check"))
 
 (defun yarn-check-integrity ()
   "Verify installed package versions and their checksums"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-check-integrity" "*yarn*" "yarn" "check" "--integrity"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-check-integrity" "*yarn*" "yarn" "check" "--integrity"))
 
 (defun yarn-upgrade ()
   "Upgrade packages with Yarn"
   (interactive)
   (message "Upgrading project packages to their latest versions... (Check *yarn* for the output)")
-  (yarn-exec-with-path 'start-process "yarn-upgrade" "*yarn*" "yarn" "upgrade"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-upgrade" "*yarn*" "yarn" "upgrade"))
 
 (defun yarn-outdated ()
   "Check for outdated packages with Yarn"
   (interactive)
   (message "Checking for outdated packages in project... (Check *yarn* for the output)")
-  (yarn-exec-with-path 'start-process "yarn-outdated" "*yarn*" "yarn" "outdated"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-outdated" "*yarn*" "yarn" "outdated"))
 
 (defun yarn-clean ()
   "Clean free space by removing unnecessary packages"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-clean" "*yarn*" "yarn" "clean"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-clean" "*yarn*" "yarn" "clean"))
 
 (defun yarn-bin ()
   "Display installed executable directory"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-bin" "*yarn*" "yarn" "bin"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-bin" "*yarn*" "yarn" "bin"))
 
 (defun yarn-cache-ls ()
   "Display all cached packages"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-cache-ls" "*yarn*" "yarn" "cache" "ls"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-cache-ls" "*yarn*" "yarn" "cache" "ls"))
 
 (defun yarn-cache-dir ()
   "Display global cache directory location"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-cache-dir" "*yarn*" "yarn" "cache" "dir"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-cache-dir" "*yarn*" "yarn" "cache" "dir"))
 
 (defun yarn-cache-clean ()
   "Clear the local cache"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-cache-clean" "*yarn*" "yarn" "cache" "clean"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-cache-clean" "*yarn*" "yarn" "cache" "clean"))
 
 (defun yarn-config-set ()
   "Set a local configuration value"
@@ -314,7 +333,7 @@ NIL if they should be looked up from the global path"
     (setq key (read-from-minibuffer "Set which local key? (e.g: user.pass):"))
     (setq value (read-from-minibuffer "Value for local key? (e.g: bunnies):"))
     (message (concat "Setting local repository config value: " key))
-    (yarn-exec-with-path 'start-process "yarn-config-set" "*yarn*" "yarn" "config" "set" key value)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-config-set" "*yarn*" "yarn" "config" "set" key value)))
 
 (defun yarn-config-get ()
   "Get the effective local configuration value"
@@ -322,7 +341,7 @@ NIL if they should be looked up from the global path"
   (let (key)
     (setq key (read-from-minibuffer "Get which local key value? (e.g: user.pass):"))
     (message (concat "Getting local repository config value: " key))
-    (yarn-exec-with-path 'start-process "yarn-config-get" "*yarn*" "yarn" "config" "get" key)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-config-get" "*yarn*" "yarn" "config" "get" key)))
 
 (defun yarn-global-config-set ()
   "Set a global configuration value"
@@ -331,7 +350,7 @@ NIL if they should be looked up from the global path"
     (setq key (read-from-minibuffer "Set which key globally? (e.g: user.pass):"))
     (setq value (read-from-minibuffer "Value for global key? (e.g: bunnies):"))
     (message (concat "Setting global repository config value: " key))
-    (yarn-exec-with-path 'start-process "yarn-global-config-set" "*yarn*" "yarn" "config" "set" key value "--global")))
+    (yarn-exec-with-path 'yarn-start-process "yarn-global-config-set" "*yarn*" "yarn" "config" "set" key value "--global")))
 
 (defun yarn-config-delete ()
   "Delete local configuration value"
@@ -339,27 +358,27 @@ NIL if they should be looked up from the global path"
   (let (key)
     (setq key (read-from-minibuffer "Delete which key? (e.g: user.pass):"))
     (message (concat "Deleting local repository config value: " key))
-    (yarn-exec-with-path 'start-process "yarn-config-delete" "*yarn*" "yarn" "config" "delete" key)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-config-delete" "*yarn*" "yarn" "config" "delete" key)))
 
 (defun yarn-config-list ()
   "Display current configuration"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-config-list" "*yarn*" "yarn" "config" "list"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-config-list" "*yarn*" "yarn" "config" "list"))
 
 (defun yarn-ls ()
   "List installed packages"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-ls" "*yarn*" "yarn" "ls"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-ls" "*yarn*" "yarn" "ls"))
 
 (defun yarn-licenses-ls ()
   "List installed packages and their licenses"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-licenses-ls" "*yarn*" "yarn" "licenses" "ls"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-licenses-ls" "*yarn*" "yarn" "licenses" "ls"))
 
 (defun yarn-licenses-generate-disclaimer ()
   "Generate a sorted list of licenses to *yarn-disclaimer*"
   (interactive)
-  (yarn-exec-with-path 'start-process "yarn-licenses-generate-disclaimer" "*yarn-disclaimer*" "yarn" "licenses" "generate-disclaimer"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-licenses-generate-disclaimer" "*yarn-disclaimer*" "yarn" "licenses" "generate-disclaimer"))
 
 (defun yarn-why ()
   "Information about why a package has been installed"
@@ -367,7 +386,7 @@ NIL if they should be looked up from the global path"
   (let (why)
     (setq why (read-from-minibuffer "Which module do you want to know about? (e.g: jquery):"))
     (message (concat "Gathering information about why " why " was installed... (Check *yarn* for the output)"))
-    (yarn-exec-with-path 'start-process "yarn-why" "*yarn*" "yarn" "why" why)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-why" "*yarn*" "yarn" "why" why)))
 
 (defun yarn-test ()
   "Run test script"
@@ -378,20 +397,20 @@ NIL if they should be looked up from the global path"
   "Make package linkable"
   (interactive)
   (message (concat "Making project linkable... (Check *yarn* for the output)"))
-  (yarn-exec-with-path 'start-process "yarn-link" "*yarn*" "yarn" "link"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-link" "*yarn*" "yarn" "link"))
 
 (defun yarn-link-package ()
   "Link external package to current project"
   (interactive)
   (setq yarn-vars-link-dep (read-from-minibuffer "Link package (e.g: next): " yarn-vars-link-dep))
   (message (concat "Linking package " yarn-vars-link-dep))
-  (yarn-exec-with-path 'start-process "yarn-link-package" "*yarn*" "yarn" "link" yarn-vars-link-dep))
+  (yarn-exec-with-path 'yarn-start-process "yarn-link-package" "*yarn*" "yarn" "link" yarn-vars-link-dep))
 
 (defun yarn-unlink ()
   "Unlink a linked package"
   (interactive)
   (message (concat "Unlinking package... (Check *yarn* for the output)"))
-  (yarn-exec-with-path 'start-process "yarn-unlink" "*yarn*" "yarn" "unlink"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-unlink" "*yarn*" "yarn" "unlink"))
 
 (defun yarn-pack ()
   "Create a compressed gzip archive of package"
@@ -404,7 +423,7 @@ NIL if they should be looked up from the global path"
   (interactive)
   (setq yarn-vars-filename (read-from-minibuffer "Packed file name (e.g: bundle.js): " yarn-vars-filename))
   (message (concat "Packing package to " yarn-vars-filename))
-  (yarn-exec-with-path 'start-process "yarn-pack-filename" "*yarn*" "yarn" "pack" "--filename" yarn-vars-link-dep))
+  (yarn-exec-with-path 'yarn-start-process "yarn-pack-filename" "*yarn*" "yarn" "pack" "--filename" yarn-vars-link-dep))
 
 (defun yarn-login ()
   "Login to the npm registry and cache username for later"
@@ -422,7 +441,7 @@ NIL if they should be looked up from the global path"
   (let (package)
     (setq package (read-from-minibuffer "List all the owners of which package? (e.g: react):"))
     (message (concat "Listing all the owners of " package " (Check *yarn* for the output)"))
-    (yarn-exec-with-path 'start-process "yarn-owner-ls" "*yarn*" "yarn" "owner" "ls" package)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-owner-ls" "*yarn*" "yarn" "owner" "ls" package)))
 
 (defun yarn-owner-add ()
   "Add an owner to a package"
@@ -431,7 +450,7 @@ NIL if they should be looked up from the global path"
     (setq user (read-from-minibuffer "Add which user as an owner? (e.g: jdoe):"))
     (setq package (read-from-minibuffer "To which package? (e.g: yarn.el):"))
     (message (concat "Adding " user " as an owner of " package " (Check *yarn* for the output)"))
-    (yarn-exec-with-path 'start-process "yarn-owner-add" "*yarn*" "yarn" "owner" "ls" user package)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-owner-add" "*yarn*" "yarn" "owner" "ls" user package)))
 
 (defun yarn-owner-rm ()
   "Remove an owner from a package"
@@ -440,7 +459,7 @@ NIL if they should be looked up from the global path"
     (setq user (read-from-minibuffer "Remove which owner? (e.g: jmfirth):"))
     (setq package (read-from-minibuffer "From which package? (e.g: yarn.el):"))
     (message (concat "Adding " user " as an owner of " package " (Check *yarn* for the output)"))
-    (yarn-exec-with-path 'start-process "yarn-owner-rm" "*yarn*" "yarn" "owner" "rm" user package)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-owner-rm" "*yarn*" "yarn" "owner" "rm" user package)))
 
 (defun yarn-tag-add ()
   "Add a tag for a specific version of a package"
@@ -449,7 +468,7 @@ NIL if they should be looked up from the global path"
     (setq package-and-version (read-from-minibuffer "Which package and verson do you want to tag? (e.g: <package>@<version>):"))
     (setq tag (read-from-minibuffer "With what tag? (e.g: awesome):"))
     (message (concat "Adding tag " tag " to " package-and-version " (Check *yarn* for the output)"))
-    (yarn-exec-with-path 'start-process "yarn-tag-add" "*yarn*" "yarn" "tag" "add" package-and-version tag)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-tag-add" "*yarn*" "yarn" "tag" "add" package-and-version tag)))
 
 (defun yarn-tag-rm ()
   "Remove a tag from a package"
@@ -458,7 +477,7 @@ NIL if they should be looked up from the global path"
     (setq package (read-from-minibuffer "Which package and verson do you want to remove a tag? (e.g: <package>):"))
     (setq tag (read-from-minibuffer "With tag? (e.g: awesome):"))
     (message (concat "Removing tag " tag " from " package " (Check *yarn* for the output)"))
-    (yarn-exec-with-path 'start-process "yarn-tag-add" "*yarn*" "yarn" "tag" "remove" package tag)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-tag-add" "*yarn*" "yarn" "tag" "remove" package tag)))
 
 (defun yarn-tag-ls ()
   "List all tags for a package"
@@ -466,7 +485,7 @@ NIL if they should be looked up from the global path"
   (let (package)
     (setq package (read-from-minibuffer "Which package do you want to list tags for? (e.g: <package>):"))
     (message (concat "Listing tags for " package " (Check *yarn* for the output)"))
-    (yarn-exec-with-path 'start-process "yarn-tag-ls" "*yarn*" "yarn" "tag" "ls" package)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-tag-ls" "*yarn*" "yarn" "tag" "ls" package)))
 
 (defun yarn-version ()
   "Bump package version"
@@ -474,13 +493,13 @@ NIL if they should be looked up from the global path"
   (let (version)
     (setq version (read-from-minibuffer "Bump version: "))
     (message (concat "Bumping version to" version " (Check *yarn* for the output)"))
-    (yarn-exec-with-path 'start-process "yarn-version" "*yarn*" "yarn" "version" "--new-version" version)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-version" "*yarn*" "yarn" "version" "--new-version" version)))
 
 (defun yarn-publish ()
   "Publish package"
   (interactive)
   (message "Publishing package... (Check *yarn* for the output)")
-  (yarn-exec-with-path 'start-process "yarn-publish" "*yarn*" "yarn" "publish"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-publish" "*yarn*" "yarn" "publish"))
 
 (defun yarn-publish-tag ()
   "Publish package with tag"
@@ -488,46 +507,46 @@ NIL if they should be looked up from the global path"
   (let (tag)
     (setq tag (read-from-minibuffer "Tag (e.g: beta): " tag))
     (message "Publishing package... (Check *yarn* for the output)")
-    (yarn-exec-with-path 'start-process "yarn-publish-tag" "*yarn*" "yarn" "publish" "---tag" tag)))
+    (yarn-exec-with-path 'yarn-start-process "yarn-publish-tag" "*yarn*" "yarn" "publish" "---tag" tag)))
 
 (defun yarn-publish-public ()
   "Publish public package"
   (interactive)
   (message "Publishing public package... (Check *yarn* for the output)")
-  (yarn-exec-with-path 'start-process "yarn-publish-public" "*yarn*" "yarn" "publish" "--access" "private"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-publish-public" "*yarn*" "yarn" "publish" "--access" "private"))
 
 (defun yarn-publish-private ()
   "Publish private package"
   (interactive)
   (message "Publishing private package... (Check *yarn* for the output)")
-  (yarn-exec-with-path 'start-process "yarn-publish-private" "*yarn*" "yarn" "publish" "--access" "public"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-publish-private" "*yarn*" "yarn" "publish" "--access" "public"))
 
 (defun yarn-info ()
   "Find information about a package"
   (interactive)
   (setq yarn-vars-last-search-keyword (read-from-minibuffer "Pakage name: " yarn-vars-last-search-keyword))
   (message (concat "Searching for " yarn-vars-last-search-keyword))
-  (yarn-exec-with-path 'start-process "yarn-info" "*yarn*" "yarn" "info" yarn-vars-last-search-keyword))
+  (yarn-exec-with-path 'yarn-start-process "yarn-info" "*yarn*" "yarn" "info" yarn-vars-last-search-keyword))
 
 (defun yarn-info-json ()
   "Find JSON-formatted information about a package"
   (interactive)
   (setq yarn-vars-last-search-keyword (read-from-minibuffer "Pakage name: " yarn-vars-last-search-keyword))
   (message (concat "Searching for " yarn-vars-last-search-keyword))
-  (yarn-exec-with-path 'start-process "yarn-info-json" "*yarn*" "yarn" "info" yarn-vars-last-search-keyword "--json"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-info-json" "*yarn*" "yarn" "info" yarn-vars-last-search-keyword "--json"))
 
 (defun yarn-info-readme ()
   "Get the README of a package"
   (interactive)
   (setq yarn-vars-last-search-keyword (read-from-minibuffer "Pakage name: " yarn-vars-last-search-keyword))
   (message (concat "Searching for " yarn-vars-last-search-keyword))
-  (yarn-exec-with-path 'start-process "yarn-info-readme" "*yarn*" "yarn" "info" yarn-vars-last-search-keyword "readme"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-info-readme" "*yarn*" "yarn" "info" yarn-vars-last-search-keyword "readme"))
 
 (defun yarn-self-update ()
   "Make package linkable"
   (interactive)
   (message (concat "Updating yarn... (Check *yarn* for the output)"))
-  (yarn-exec-with-path 'start-process "yarn-self-update" "*yarn*" "yarn" "self-update"))
+  (yarn-exec-with-path 'yarn-start-process "yarn-self-update" "*yarn*" "yarn" "self-update"))
 
 (defalias 'yarn-update 'yarn-self-update)
 
